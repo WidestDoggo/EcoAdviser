@@ -1,8 +1,11 @@
 package cp213;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.TreeMap;
 
 public class Main {
     private String category;
@@ -31,11 +34,12 @@ public class Main {
 	    if (choice == 1) {
 		System.out.print("Category: ");
 		String category = scanner.nextLine();
+
 		System.out.print("Amount: ");
 		double amount = scanner.nextDouble();
 		scanner.nextLine();
-		System.out.print("Date (YYYY-MM-DD): ");
-		String date = scanner.nextLine();
+
+		String date = readValidDate(scanner);
 
 		Main e = new Main(category, amount, date);
 		expenses.add(e);
@@ -43,8 +47,39 @@ public class Main {
 
 	    } else if (choice == 2) {
 		System.out.println("\n--- All Expenses ---");
-		for (Main e : expenses) {
-		    System.out.println(e);
+
+		if (expenses.isEmpty()) {
+		    System.out.println("No expenses recorded yet.");
+		} else {
+		    // Group by category, sorted alphabetically
+		    Map<String, List<Main>> grouped = new TreeMap<>();
+
+		    for (Main e : expenses) {
+			grouped.computeIfAbsent(e.getCategory(), k -> new ArrayList<>()).add(e);
+		    }
+
+		    // Print each category with amounts, dates, and total
+		    for (Map.Entry<String, List<Main>> entry : grouped.entrySet()) {
+			String category = entry.getKey();
+			List<Main> catExpenses = entry.getValue();
+
+			System.out.print(category + ": ");
+
+			double total = 0.0;
+
+			for (int i = 0; i < catExpenses.size(); i++) {
+			    Main e = catExpenses.get(i);
+			    total += e.getAmount();
+
+			    System.out.print(String.format("$%.2f (%s)", e.getAmount(), e.getDate()));
+
+			    if (i < catExpenses.size() - 1) {
+				System.out.print(", ");
+			    }
+			}
+
+			System.out.println(String.format(" | Total: $%.2f", total));
+		    }
 		}
 
 	    } else if (choice == 3) {
@@ -87,4 +122,20 @@ public class Main {
     public String toString() {
 	return "Category: " + category + ", Amount: $" + amount + ", Date: " + date;
     }
+
+    private static String readValidDate(Scanner scanner) {
+	while (true) {
+	    System.out.print("Date (YYYY-MM-DD): ");
+	    String input = scanner.nextLine().trim();
+
+	    try {
+		// Strict parsing of ISO format
+		LocalDate.parse(input);
+		return input; // valid date
+	    } catch (Exception e) {
+		System.out.println("Invalid date. Please enter a real date in YYYY-MM-DD format.");
+	    }
+	}
+    }
+
 }
