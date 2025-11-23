@@ -18,12 +18,15 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-class Expense {
-    private String category;
-    private double amount;
-    private String date; // keep as String like your original
+/**
+ * Abstract parent for both expenses and incomes.
+ */
+abstract class FinancialRecord {
+    private final String category;
+    private final double amount;
+    private final String date; // stored as String, validated with LocalDate
 
-    public Expense(String category, double amount, String date) {
+    public FinancialRecord(String category, double amount, String date) {
 	this.category = category;
 	this.amount = amount;
 	this.date = date;
