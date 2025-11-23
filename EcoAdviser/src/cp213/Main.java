@@ -2,6 +2,8 @@ package cp213;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,105 +98,172 @@ class ExpensePanel extends JPanel {
 	inputPanel.add(amountField);
 	inputPanel.add(new JLabel("Date (YYYY-MM-DD):"));
 	inputPanel.add(dateField);
-	inputPanel.add(addButton);
-	inputPanel.add(viewButton);
+	inputPanel.add(addExpenseButton);
+	inputPanel.add(addIncomeButton);
 
 	outputArea.setEditable(false);
 	JScrollPane scrollPane = new JScrollPane(outputArea);
 
 	this.add(inputPanel, BorderLayout.NORTH);
+	this.add(viewButton, BorderLayout.SOUTH);
 	this.add(scrollPane, BorderLayout.CENTER);
     }
 
     private void registerListeners() {
-	addButton.addActionListener(e -> addExpense());
-	viewButton.addActionListener(e -> displayExpenses());
+	addExpenseButton.addActionListener(new AddExpenseListener());
+	addIncomeButton.addActionListener(new AddIncomeListener());
+	viewButton.addActionListener(new ViewRecordsListener());
     }
 
-    private void addExpense() {
+    // Common validation / parsing
+    private boolean checkAndParseInput(StringBuilder errorOut, double[] amountOut) {
 	String category = categoryField.getText().trim();
 	String amountText = amountField.getText().trim();
 	String dateText = dateField.getText().trim();
 
 	if (category.isEmpty() || amountText.isEmpty() || dateText.isEmpty()) {
-	    outputArea.setText("Please fill out category, amount, and date.\n");
-	    System.out.println("GUI: missing fields when adding expense.");
-	    return;
+	    errorOut.append("Please fill out category, amount, and date.\n");
+	    return false;
 	}
 
-	double amount;
 	try {
-	    amount = Double.parseDouble(amountText);
+	    amountOut[0] = Double.parseDouble(amountText);
 	} catch (NumberFormatException ex) {
-	    outputArea.setText("Amount must be a valid number.\n");
-	    System.out.println("GUI: invalid amount entered: " + amountText);
-	    return;
+	    errorOut.append("Amount must be a valid number.\n");
+	    return false;
 	}
 
-	// validate date like your console code
 	try {
-	    LocalDate.parse(dateText); // just to validate
+	    LocalDate.parse(dateText); // validation only
 	} catch (Exception ex) {
-	    outputArea.setText("Invalid date. Use YYYY-MM-DD and a real date.\n");
-	    System.out.println("GUI: invalid date entered: " + dateText);
+	    errorOut.append("Invalid date. Use YYYY-MM-DD and a real date.\n");
+	    return false;
+	}
+
+	return true;
+    }
+
+    private void addExpense() {
+	StringBuilder err = new StringBuilder();
+	double[] amountHolder = new double[1];
+
+	if (!checkAndParseInput(err, amountHolder)) {
+	    outputArea.setText(err.toString());
+	    System.out.println("Add Expense error: " + err);
 	    return;
 	}
 
-	Expense expense = new Expense(category, amount, dateText);
-	expenses.add(expense);
+	String category = categoryField.getText().trim();
+	String dateText = dateField.getText().trim();
+	double amount = amountHolder[0];
 
-	// GUI message
+	FinancialRecord expense = new Expense(category, amount, dateText);
+	records.add(expense);
+
 	outputArea.setText("Expense added!\n");
-	// Console output too
 	System.out.println("Added expense: " + expense);
 
-	// clear inputs
 	categoryField.setText("");
 	amountField.setText("");
 	dateField.setText("");
     }
 
-    private void displayExpenses() {
-	if (expenses.isEmpty()) {
-	    outputArea.setText("No expenses recorded yet.\n");
-	    System.out.println("View Expenses: no expenses recorded yet.");
+    private void addIncome() {
+	StringBuilder err = new StringBuilder();
+	double[] amountHolder = new double[1];
+
+	if (!checkAndParseInput(err, amountHolder)) {
+	    outputArea.setText(err.toString());
+	    System.out.println("Add Income error: " + err);
+	    return;
+	}
+
+	String category = categoryField.getText().trim();
+	String dateText = dateField.getText().trim();
+	double amount = amountHolder[0];
+
+	FinancialRecord income = new Income(category, amount, dateText);
+	records.add(income);
+
+	outputArea.setText("Income added!\n");
+	System.out.println("Added income: " + income);
+
+	categoryField.setText("");
+	amountField.setText("");
+	dateField.setText("");
+    }
+
+    private void displayRecords() {
+	if (records.isEmpty()) {
+	    outputArea.setText("No records yet.\n");
+	    System.out.println("View Records: no records yet.");
 	    return;
 	}
 
 	StringBuilder sb = new StringBuilder();
-	sb.append("=== All Expenses ===\n\n");
+	sb.append("=== All Records (Expenses + Incomes) ===\n\n");
 
-	Map<String, List<Expense>> grouped = new TreeMap<>();
+	Map<String, List<FinancialRecord>> grouped = new TreeMap<>();
+	double grandTotal = 0.0;
+	int totalCount = 0;
 
-	for (Expense e : expenses) {
-	    grouped.computeIfAbsent(e.getCategory(), k -> new ArrayList<>()).add(e);
+	for (FinancialRecord r : records) {
+	    grouped.computeIfAbsent(r.getCategory(), k -> new ArrayList<>()).add(r);
+	    grandTotal += r.getAmount();
+	    totalCount++;
 	}
 
-	for (Map.Entry<String, List<Expense>> entry : grouped.entrySet()) {
+	for (Map.Entry<String, List<FinancialRecord>> entry : grouped.entrySet()) {
 	    String category = entry.getKey();
-	    List<Expense> catExpenses = entry.getValue();
+	    List<FinancialRecord> catRecords = entry.getValue();
 
 	    sb.append(category).append(": ");
 
 	    double total = 0.0;
 
-	    for (int i = 0; i < catExpenses.size(); i++) {
-		Expense e = catExpenses.get(i);
-		total += e.getAmount();
+	    for (int i = 0; i < catRecords.size(); i++) {
+		FinancialRecord r = catRecords.get(i);
+		total += r.getAmount();
 
-		sb.append(String.format("$%.2f (%s)", e.getAmount(), e.getDate()));
-		if (i < catExpenses.size() - 1) {
+		sb.append(String.format("$%.2f (%s, %s)", r.getAmount(), r.getDate(), r.getType()));
+		if (i < catRecords.size() - 1) {
 		    sb.append(", ");
 		}
 	    }
-	    sb.append(String.format(" | Total: $%.2f\n", total));
+	    sb.append(String.format(" | Category total: $%.2f\n", total));
 	}
+
+	sb.append("\n---------------------------\n");
+	sb.append(String.format("Total records: %d\n", totalCount));
+	sb.append(String.format("Grand total (all amounts): $%.2f\n", grandTotal));
 
 	String result = sb.toString();
 	outputArea.setText(result);
-
-	// Also print to console for your report / screenshots
 	System.out.println(result);
+    }
+
+    // ===== Inner class: Add Expense =====
+    private class AddExpenseListener implements ActionListener {
+	@Override
+	public void actionPerformed(ActionEvent e) {
+	    addExpense();
+	}
+    }
+
+    // ===== Inner class: Add Income =====
+    private class AddIncomeListener implements ActionListener {
+	@Override
+	public void actionPerformed(ActionEvent e) {
+	    addIncome();
+	}
+    }
+
+    // ===== Inner class: View Records =====
+    private class ViewRecordsListener implements ActionListener {
+	@Override
+	public void actionPerformed(ActionEvent e) {
+	    displayRecords();
+	}
     }
 }
 
@@ -202,7 +271,7 @@ public class Main {
 
     public static void main(String[] args) {
 	SwingUtilities.invokeLater(() -> {
-	    JFrame frame = new JFrame("Expense Tracker");
+	    JFrame frame = new JFrame("Expense / Income Tracker");
 	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	    frame.setContentPane(new ExpensePanel());
 	    frame.pack();
