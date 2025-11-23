@@ -44,22 +44,40 @@ abstract class FinancialRecord {
 	return date;
     }
 
+    // Implemented differently for Expense and Income
+    public abstract String getType();
+
     @Override
     public String toString() {
-	return String.format("%s: $%.2f (%s)", category, amount, date);
+	return String.format("[%s] %s: $%.2f (%s)", getType(), category, amount, date);
+    }
+}
+
+class Expense extends FinancialRecord {
+
+    public Expense(String category, double amount, String date) {
+	super(category, -Math.abs(amount), date); // store income positive, expenses negative
+    }
+
+    @Override
+    public String getType() {
+	return "Expense";
     }
 }
 
 @SuppressWarnings("serial")
 class ExpensePanel extends JPanel {
 
-    private final List<Expense> expenses = new ArrayList<>();
+    // Polymorphic list: can hold both Expense and Income
+    private final List<FinancialRecord> records = new ArrayList<>();
 
     private final JTextField categoryField = new JTextField();
     private final JTextField amountField = new JTextField();
     private final JTextField dateField = new JTextField(); // YYYY-MM-DD
-    private final JButton addButton = new JButton("Add Expense");
-    private final JButton viewButton = new JButton("View Expenses");
+
+    private final JButton addExpenseButton = new JButton("Add Expense");
+    private final JButton addIncomeButton = new JButton("Add Income");
+    private final JButton viewButton = new JButton("View All");
     private final JTextArea outputArea = new JTextArea(15, 40);
 
     public ExpensePanel() {
